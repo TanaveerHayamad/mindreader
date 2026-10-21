@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MINDREADER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F1FF;--card:#FFFFFF;--ink:#1A1433;--muted:#5E5880;--line:#DAD3F5;
+  --accent:#FFC857;--accent-ink:#1A1433;--reveal:#4A2BD6;--glow:rgba(124,92,255,.35);--danger:#B3261E;
+  --display:"Fraunces",Georgia,serif;--body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#120E24;--card:#1D1838;--ink:#F4F1FF;--muted:#A9A2D0;--line:#352E63;--reveal:#FFC857;--glow:rgba(124,92,255,.55);--danger:#FF8A80}}
+:root[data-theme="dark"]{
+  --bg:#120E24;--card:#1D1838;--ink:#F4F1FF;--muted:#A9A2D0;--line:#352E63;--reveal:#FFC857;--glow:rgba(124,92,255,.55);--danger:#FF8A80}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;height:100%;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.5;overflow-x:hidden;
+  background-image:radial-gradient(ellipse 80% 50% at 50% 0%,var(--glow),transparent 70%)}
+main{min-height:100vh;display:grid;place-items:center;padding:1.25rem}
+.stage{width:100%;max-width:520px;text-align:center}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,9vw,3.6rem);letter-spacing:-.02em;line-height:1;margin:0 0 .75rem}
+h2{font-family:var(--display);font-weight:600;font-size:clamp(1.6rem,6vw,2.2rem);line-height:1.2;margin:0 0 1rem}
+p{margin:0 0 1rem}
+.muted{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:2rem 1.5rem;box-shadow:0 20px 60px -25px var(--glow)}
+.btn{min-height:52px;padding:0 1.8rem;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:600 1.0625rem var(--body);cursor:pointer;transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.06)}.btn:active{transform:scale(.97)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:8px}
+.dots{display:flex;gap:.4rem;justify-content:center;margin-bottom:1.25rem}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--line);transition:background .2s}
+.dots i.on{background:var(--accent)}
+.step-label{font-size:.9375rem;color:var(--muted);margin-bottom:.5rem}
+.instr{font-family:var(--display);font-weight:600;font-size:clamp(1.9rem,8vw,2.7rem);line-height:1.15;margin:0 0 .5rem;min-height:2.4em;display:grid;place-items:center}
+.hint{color:var(--muted);min-height:1.6em;margin-bottom:1.5rem}
+.orb{width:120px;height:120px;margin:0 auto 1.5rem;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--accent) 35%,#7C5CFF 85%);box-shadow:0 0 60px 10px var(--glow);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.12);box-shadow:0 0 90px 20px var(--glow)}}
+.answer{font-family:var(--display);font-weight:800;font-size:clamp(6rem,30vw,10rem);line-height:1;color:var(--reveal);text-shadow:0 0 40px var(--glow);margin:.5rem 0 1rem}
+.answer.pop{animation:pop .6s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+.settings{margin-top:1.5rem;text-align:left;border:1px solid var(--line);border-radius:16px;padding:.75rem 1rem;background:var(--card)}
+.settings summary{cursor:pointer;font-weight:600}
+.settings label{display:block;font-weight:600;margin:1rem 0 .35rem;font-size:.9375rem}
+.input,select{width:100%;min-height:46px;padding:0 .9rem;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:1rem var(--body)}
+.err{color:var(--danger);font-size:.875rem;min-height:1.2em;margin-top:.3rem}
+.small{font-size:.875rem;color:var(--muted);margin-top:.5rem}
+.row{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+[hidden]{display:none!important}
+canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<main>
+<div class="stage">
+
+  <section id="intro">
+    <h1>MINDREADER</h1>
+    <p class="muted" style="font-size:1.125rem">Think of a number between 1 and 20. Keep it secret and don’t say it out loud.</p>
+    <button class="btn" id="start">I’ve got my number</button>
+
+    <details class="settings">
+      <summary>Magician’s settings</summary>
+      <label for="target">Reveal this number (optional)</label>
+      <input class="input" id="target" type="text" inputmode="numeric" placeholder="Leave empty for a random reveal" aria-describedby="target-err">
+      <div class="err" id="target-err" role="alert"></div>
+      <label for="style">Trick style</label>
+      <select id="style">
+        <option value="shuffle">Shuffle the logic every round</option>
+        <option value="classic">Classic: double, add, halve, subtract</option>
+      </select>
+      <p class="small">Pick a reveal number first, then let your friend play. The steps rebuild themselves to land on it.</p>
+    </details>
+  </section>
+
+  <section id="steps" class="card" hidden>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="step-label" id="step-label"></div>
+    <div class="instr" id="instr" aria-live="polite"></div>
+    <div class="hint" id="hint"></div>
+    <button class="btn" id="next">Done</button>
+  </section>
+
+  <section id="focus" class="card" hidden>
+    <h2>Now, hold the number you’re left with in your mind.</h2>
+    <p class="muted">Don’t say it. Focus as hard as you can.</p>
+    <button class="btn" id="read">Read my mind</button>
+  </section>
+
+  <section id="scan" hidden>
+    <div class="orb"></div>
+    <h2 id="scan-text">Reading your thoughts…</h2>
+  </section>
+
+  <section id="result" hidden>
+    <h2>Your final number is</h2>
+    <div class="answer" id="answer" aria-live="assertive">?</div>
+    <p class="muted">Right? Now show it to someone else.</p>
+    <div class="row">
+      <button class="btn" id="again">Play again</button>
+      <button class="btn ghost" id="settings-back">Change settings</button>
+    </div>
+  </section>
+
+</div>
+</main>
+<script>
+(function(){
+  var $ = function(id){return document.getElementById(id)};
+  var rand = function(a,b){return Math.floor(Math.random()*(b-a+1))+a};
+  var sections = ["intro","steps","focus","scan","result"];
+  function show(name){sections.forEach(function(s){$(s).hidden = s!==name}); window.scrollTo(0,0);}
+
+  /* ---------- Trick engine: every round builds its own logic ---------- */
+  function scaleTrick(target, forceM){
+    var m = forceM || rand(2,5), c = rand(2,12), d = 0;
+    if(target!=null){ d = target - c; } else if(Math.random()<.5){ d = rand(1,9); }
+    var steps = [
+      {t: m===2 ? "Double it." : "Multiply it by "+m+".", h:"Do the math in your head."},
+      {t: "Add "+(m*c)+".", h:"Take your time."},
+      {t: m===2 ? "Cut it in half." : "Divide it by "+m+".", h:"It will divide evenly."},
+      {t: "Subtract your original number.", h:"The one you first thought of."}
+    ];
+    if(d>0) steps.push({t:"Add "+d+".", h:"Almost there."});
+    if(d<0) steps.push({t:"Subtract "+(-d)+".", h:"Almost there."});
+    return {steps:steps, answer:c+d};
+  }
+  function addMulTrick(target){
+    var opts = [2,3,4,5].filter(function(m){return target==null || (target % m===0 && target/m>=1)});
+    if(!opts.length) return scaleTrick(target);
+    var m = opts[rand(0,opts.length-1)];
+    var a = target!=null ? target/m : rand(2,9);
+    return {steps:[
+      {t:"Add "+a+".", h:"To your secret number."},
+      {t:"Multiply the result by "+m+".", h:"Take your time."},
+      {t:"Subtract your original number "+m+" times.", h:"That is, "+m+" × your starting number."}
+    ], answer:a*m};
+  }
+  function build(target, style){
+    if(style==="classic") return scaleTrick(target, 2);
+    return Math.random()<.5 ? scaleTrick(target) : addMulTrick(target);
+  }
+
+  /* ---------- Flow ---------- */
+  var trick, idx;
+  function readTarget(){
+    var raw = $("target").value.trim(), err = $("target-err");
+    err.textContent = "";
+    if(raw==="") return {ok:true, value:null};
+    if(!/^\d{1,2}$/.test(raw) || +raw<1){ err.textContent = "Pick a whole number from 1 to 99."; return {ok:false}; }
+    return {ok:true, value:+raw};
+  }
+  $("start").addEventListener("click", function(){
+    var t = readTarget(); if(!t.ok){ $("target").focus(); return; }
+    trick = build(t.value, $("style").value); idx = 0;
+    $("dots").innerHTML = trick.steps.map(function(){return "<i></i>"}).join("");
+    renderStep(); show("steps"); $("next").focus();
+  });
+  function renderStep(){
+    var s = trick.steps[idx];
+    $("step-label").textContent = "Step "+(idx+1)+" of "+trick.steps.length;
+    $("instr").textContent = s.t; $("hint").textContent = s.h;
+    Array.prototype.forEach.call($("dots").children, function(d,i){d.className = i<=idx ? "on":""});
+    $("next").textContent = idx===trick.steps.length-1 ? "Finished" : "Done";
+  }
+  $("next").addEventListener("click", function(){
+    if(idx < trick.steps.length-1){ idx++; renderStep(); }
+    else { show("focus"); $("read").focus(); }
+  });
+
+  var lines = ["Reading your thoughts…","Tuning in to your brainwaves…","Almost got it…"];
+  $("read").addEventListener("click", function(){
+    show("scan"); var n=0;
+    var iv = setInterval(function(){ n=(n+1)%lines.length; $("scan-text").textContent = lines[n]; }, 900);
+    setTimeout(function(){ clearInterval(iv); reveal(); }, 2700);
+  });
+  function reveal(){
+    show("result");
+    var el = $("answer"), ticks = 0;
+    el.classList.remove("pop");
+    var sh = setInterval(function(){
+      el.textContent = rand(1,99); ticks++;
+      if(ticks>12){ clearInterval(sh); el.textContent = trick.answer; void el.offsetWidth; el.classList.add("pop"); burst(); }
+    }, 70);
+  }
+  function backToStart(){ show("intro"); $("start").focus(); }
+  $("again").addEventListener("click", function(){ show("intro"); $("start").click(); });
+  $("settings-back").addEventListener("click", backToStart);
+
+  /* ---------- Confetti ---------- */
+  var cv = $("confetti"), cx = cv.getContext("2d"), parts = [], raf;
+  function size(){ cv.width = innerWidth*devicePixelRatio; cv.height = innerHeight*devicePixelRatio; }
+  size(); addEventListener("resize", size);
+  function burst(){
+    if(matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+    var cols = ["#FFC857","#7C5CFF","#FF6B9A","#5BE3C0","#FFFFFF"], dpr = devicePixelRatio;
+    for(var i=0;i<160;i++){
+      var a = Math.random()*Math.PI*2, v = (4+Math.random()*9)*dpr;
+      parts.push({x:cv.width/2,y:cv.height*.4,vx:Math.cos(a)*v,vy:Math.sin(a)*v-5*dpr,
+        w:(6+Math.random()*6)*dpr,h:(4+Math.random()*5)*dpr,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+        c:cols[rand(0,cols.length-1)],life:140+rand(0,60)});
+    }
+    cancelAnimationFrame(raf); tick();
+  }
+  function tick(){
+    cx.clearRect(0,0,cv.width,cv.height);
+    parts = parts.filter(function(p){return p.life>0 && p.y<cv.height+50});
+    parts.forEach(function(p){
+      p.vy += .22*devicePixelRatio; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life--;
+      cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle = p.c;
+      cx.globalAlpha = Math.min(1,p.life/40); cx.fillRect(-p.w/2,-p.h/2,p.w,p.h); cx.restore();
+    });
+    if(parts.length) raf = requestAnimationFrame(tick); else cx.clearRect(0,0,cv.width,cv.height);
+  }
+})();
+</script>
+</body>
+</html>
