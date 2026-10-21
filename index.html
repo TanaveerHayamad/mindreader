@@ -43,6 +43,7 @@ p{margin:0 0 1rem}
 @keyframes pulse{50%{transform:scale(1.12);box-shadow:0 0 90px 20px var(--glow)}}
 .answer{font-family:var(--display);font-weight:800;font-size:clamp(6rem,30vw,10rem);line-height:1;color:var(--reveal);text-shadow:0 0 40px var(--glow);margin:.5rem 0 1rem}
 .answer.pop{animation:pop .6s cubic-bezier(.2,1.4,.4,1)}
+.answer.word{font-size:clamp(3rem,14vw,5.2rem);line-height:1.1}
 @keyframes pop{from{transform:scale(.4);opacity:0}}
 .settings{margin-top:1.5rem;text-align:left;border:1px solid var(--line);border-radius:16px;padding:.75rem 1rem;background:var(--card)}
 .settings summary{cursor:pointer;font-weight:600}
@@ -63,15 +64,22 @@ canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index
 
   <section id="intro">
     <h1>MINDREADER</h1>
-    <p class="muted" style="font-size:1.125rem">Think of a number between 1 and 20. Keep it secret and don’t say it out loud.</p>
+    <p class="muted" style="font-size:1.125rem">I’m about to read your mind. Follow each step in your head and keep your answers to yourself.</p>
     <button class="btn" id="start">I’ve got my number</button>
 
     <details class="settings">
       <summary>Magician’s settings</summary>
-      <label for="target">Reveal this number (optional)</label>
+      <label for="trick">Which trick?</label>
+      <select id="trick">
+        <option value="surprise">Surprise me</option>
+        <option value="number">Guess my final number</option>
+        <option value="monthage">Guess my birth month and age</option>
+        <option value="monthday">Guess my birthday (month and day)</option>
+      </select>
+      <label for="target">Reveal this number (optional, number trick only)</label>
       <input class="input" id="target" type="text" inputmode="numeric" placeholder="Leave empty for a random reveal" aria-describedby="target-err">
       <div class="err" id="target-err" role="alert"></div>
-      <label for="style">Trick style</label>
+      <label for="style">Number trick style</label>
       <select id="style">
         <option value="shuffle">Shuffle the logic every round</option>
         <option value="classic">Classic: double, add, halve, subtract</option>
@@ -89,8 +97,13 @@ canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index
   </section>
 
   <section id="focus" class="card" hidden>
-    <h2>Now, hold the number you’re left with in your mind.</h2>
-    <p class="muted">Don’t say it. Focus as hard as you can.</p>
+    <h2 id="focus-h">Now, hold the number you’re left with in your mind.</h2>
+    <p class="muted" id="focus-p">Don’t say it. Focus as hard as you can.</p>
+    <div id="ask" hidden style="margin-bottom:1.25rem">
+      <label for="final" class="muted" style="display:block;margin-bottom:.4rem">The number you ended with</label>
+      <input class="input" id="final" type="text" inputmode="numeric" autocomplete="off" style="text-align:center;font-size:1.5rem" aria-describedby="final-err">
+      <div class="err" id="final-err" role="alert"></div>
+    </div>
     <button class="btn" id="read">Read my mind</button>
   </section>
 
@@ -100,9 +113,9 @@ canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index
   </section>
 
   <section id="result" hidden>
-    <h2>Your final number is</h2>
+    <h2 id="res-h">Your final number is</h2>
     <div class="answer" id="answer" aria-live="assertive">?</div>
-    <p class="muted">Right? Now show it to someone else.</p>
+    <p class="muted" id="res-p">Right? Now show it to someone else.</p>
     <div class="row">
       <button class="btn" id="again">Play again</button>
       <button class="btn ghost" id="settings-back">Change settings</button>
@@ -143,9 +156,35 @@ canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index
       {t:"Subtract your original number "+m+" times.", h:"That is, "+m+" × your starting number."}
     ], answer:a*m};
   }
-  function build(target, style){
-    if(style==="classic") return scaleTrick(target, 2);
-    return Math.random()<.5 ? scaleTrick(target) : addMulTrick(target);
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  /* Birth month + age/day: (a*m + b)*k + v - b*k = 100*m + v, because a*k = 100 */
+  function decodeTrick(kind){
+    var pairs = [[2,50],[4,25],[5,20],[10,10],[20,5]], p = pairs[rand(0,pairs.length-1)];
+    var a = p[0], k = p[1], b = rand(2,9);
+    var last = kind==="monthage" ? {t:"Add your age.", h:"Your age right now, in years."}
+                                 : {t:"Add the day of the month you were born.", h:"A number from 1 to 31."};
+    var steps = [
+      {t:"Take the number of the month you were born in.", h:"January is 1, December is 12."},
+      {t:"Multiply it by "+a+".", h:"Take your time."},
+      {t:"Add "+b+".", h:"Keep going."},
+      {t:"Multiply the result by "+k+".", h:"Almost there."},
+      last,
+      {t:"Subtract "+(b*k)+".", h:"Last step."}
+    ];
+    return {steps:steps, needsInput:true, decode:function(x){
+      var m = Math.floor(x/100), v = x % 100;
+      if(m<1 || m>12) return null;
+      if(kind==="monthage"){ if(v<1) return null; return {h:"You were born in", big:MONTHS[m-1], p:"and you are "+v+" years old."}; }
+      if(v<1 || v>31) return null;
+      return {h:"Your birthday is", big:v+" "+MONTHS[m-1], p:"Did I get it right?"};
+    }};
+  }
+  function build(target, style, kind){
+    if(kind==="surprise") kind = ["number","monthage","monthday"][rand(0,2)];
+    if(kind==="monthage" || kind==="monthday") return decodeTrick(kind);
+    var t = style==="classic" ? scaleTrick(target, 2) : (Math.random()<.5 ? scaleTrick(target) : addMulTrick(target));
+    t.steps.unshift({t:"Think of a number between 1 and 20.", h:"Don’t say it out loud."});
+    return t;
   }
 
   /* ---------- Flow ---------- */
@@ -159,7 +198,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index
   }
   $("start").addEventListener("click", function(){
     var t = readTarget(); if(!t.ok){ $("target").focus(); return; }
-    trick = build(t.value, $("style").value); idx = 0;
+    trick = build(t.value, $("style").value, $("trick").value); idx = 0;
     $("dots").innerHTML = trick.steps.map(function(){return "<i></i>"}).join("");
     renderStep(); show("steps"); $("next").focus();
   });
@@ -172,22 +211,37 @@ canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index
   }
   $("next").addEventListener("click", function(){
     if(idx < trick.steps.length-1){ idx++; renderStep(); }
-    else { show("focus"); $("read").focus(); }
+    else {
+      var ask = !!trick.needsInput;
+      $("ask").hidden = !ask; $("final").value = ""; $("final-err").textContent = "";
+      $("focus-h").textContent = ask ? "Enter your final number." : "Now, hold the number you’re left with in your mind.";
+      $("focus-p").textContent = ask ? "Tell me nothing else. I’ll work out the rest." : "Don’t say it. Focus as hard as you can.";
+      show("focus"); (ask ? $("final") : $("read")).focus();
+    }
   });
 
   var lines = ["Reading your thoughts…","Tuning in to your brainwaves…","Almost got it…"];
   $("read").addEventListener("click", function(){
+    if(trick.needsInput){
+      var raw = $("final").value.trim();
+      var d = /^\d{1,5}$/.test(raw) ? trick.decode(+raw) : null;
+      if(!d){ $("final-err").textContent = "That doesn’t look right. Check your steps, then enter your final number again."; $("final").focus(); return; }
+      trick.result = d;
+    }
     show("scan"); var n=0;
     var iv = setInterval(function(){ n=(n+1)%lines.length; $("scan-text").textContent = lines[n]; }, 900);
     setTimeout(function(){ clearInterval(iv); reveal(); }, 2700);
   });
   function reveal(){
     show("result");
-    var el = $("answer"), ticks = 0;
+    var el = $("answer"), ticks = 0, r = trick.result;
+    $("res-h").textContent = r ? r.h : "Your final number is";
+    $("res-p").textContent = r ? r.p : "Right? Now show it to someone else.";
+    el.classList.toggle("word", !!r);
     el.classList.remove("pop");
     var sh = setInterval(function(){
-      el.textContent = rand(1,99); ticks++;
-      if(ticks>12){ clearInterval(sh); el.textContent = trick.answer; void el.offsetWidth; el.classList.add("pop"); burst(); }
+      el.textContent = r ? MONTHS[rand(0,11)] : rand(1,99); ticks++;
+      if(ticks>12){ clearInterval(sh); el.textContent = r ? r.big : trick.answer; void el.offsetWidth; el.classList.add("pop"); burst(); }
     }, 70);
   }
   function backToStart(){ show("intro"); $("start").focus(); }
